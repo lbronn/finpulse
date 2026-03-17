@@ -36,7 +36,9 @@ export default function ExpenseFilters({ categories, onFiltersChange }: Props) {
         <Label className="text-xs">Category</Label>
         <Select value={categoryId} onValueChange={(val) => setCategoryId(val ?? '')}>
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="All categories" />
+            {categoryId
+              ? <span>{categories.find((c) => c.id === categoryId)?.name}</span>
+              : <span className="text-muted-foreground">All categories</span>}
           </SelectTrigger>
           <SelectContent>
             {categories.map((c) => (

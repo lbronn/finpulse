@@ -3,7 +3,8 @@ Django==6.0.3
 django-cors-headers==4.9.0
 djangorestframework==3.16.1
 psycopg2-binary==2.9.11
-PyJWT==2.12.1
+PyJWT[crypto]==2.12.1
+cryptography>=42.0.0
 python-dotenv==1.2.2
 sqlparse==0.5.5
 dotenv==0.9.9

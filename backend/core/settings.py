@@ -69,6 +69,7 @@ if _db_url:
 
 # Supabase Auth
 SUPABASE_JWT_SECRET = os.environ.get('SUPABASE_JWT_SECRET', '')
+SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 
 # CORS
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
@@ -79,6 +80,7 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
     'DEFAULT_AUTHENTICATION_CLASSES': [],
     'DEFAULT_PERMISSION_CLASSES': [],
+    'UNAUTHENTICATED_USER': None,
 }
 
 LANGUAGE_CODE = 'en-us'

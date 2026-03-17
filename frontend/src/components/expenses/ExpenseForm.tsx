@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Expense, ExpenseFormData, Category } from '@/types';
 
@@ -14,11 +15,33 @@ interface Props {
   onSubmit: (data: ExpenseFormData) => Promise<void>;
   categories: Category[];
   initialData?: Expense;
+  /** Recent expenses used to sort "most used" categories to the top */
+  recentExpenses?: Expense[];
 }
 
 const today = new Date().toISOString().split('T')[0];
 
-export default function ExpenseForm({ open, onOpenChange, onSubmit, categories, initialData }: Props) {
+/** Renders a category option with its color swatch and name. */
+function CategoryOption({ category }: { category: Category }) {
+  return (
+    <span className="flex items-center gap-2">
+      <span
+        className="inline-block h-3 w-3 rounded-full shrink-0"
+        style={{ backgroundColor: category.color ?? '#888' }}
+      />
+      {category.name}
+    </span>
+  );
+}
+
+export default function ExpenseForm({
+  open,
+  onOpenChange,
+  onSubmit,
+  categories,
+  initialData,
+  recentExpenses = [],
+}: Props) {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -43,6 +66,27 @@ export default function ExpenseForm({ open, onOpenChange, onSubmit, categories, 
     }
     setError(null);
   }, [initialData, open]);
+
+  // Build ordered categories: most-used first, then remaining alphabetically
+  const { topCategories, otherCategories } = useMemo(() => {
+    const countMap: Record<string, number> = {};
+    for (const e of recentExpenses) {
+      countMap[e.category_id] = (countMap[e.category_id] ?? 0) + 1;
+    }
+
+    const sorted = [...categories].sort(
+      (a, b) => (countMap[b.id] ?? 0) - (countMap[a.id] ?? 0),
+    );
+
+    const TOP_N = 3;
+    const top = sorted.slice(0, TOP_N).filter((c) => (countMap[c.id] ?? 0) > 0);
+    const topIds = new Set(top.map((c) => c.id));
+    const rest = categories.filter((c) => !topIds.has(c.id));
+
+    return { topCategories: top, otherCategories: rest };
+  }, [categories, recentExpenses]);
+
+  const selectedCategory = categories.find((c) => c.id === categoryId);
 
   const handleSubmit = async () => {
     setError(null);
@@ -123,13 +167,28 @@ export default function ExpenseForm({ open, onOpenChange, onSubmit, categories, 
             <Label htmlFor="category">Category *</Label>
             <Select value={categoryId} onValueChange={(val) => setCategoryId(val ?? '')}>
               <SelectTrigger id="category">
-                <SelectValue placeholder="Select a category">
-                  {categories.find((c) => c.id === categoryId)?.name}
-                </SelectValue>
+                {selectedCategory
+                  ? <CategoryOption category={selectedCategory} />
+                  : <span className="text-muted-foreground">Select a category</span>}
               </SelectTrigger>
               <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                {topCategories.length > 0 && (
+                  <>
+                    <div className="px-2 py-1 text-xs text-muted-foreground font-medium">
+                      Most used
+                    </div>
+                    {topCategories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        <CategoryOption category={c} />
+                      </SelectItem>
+                    ))}
+                    <Separator className="my-1" />
+                  </>
+                )}
+                {otherCategories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    <CategoryOption category={c} />
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

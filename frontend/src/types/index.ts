@@ -75,3 +75,51 @@ export interface ExpenseFilters {
   startDate?: string;
   endDate?: string;
 }
+
+// Budget goal with joined category (for Supabase reads with select('*, categories(...)'))
+export interface BudgetGoalWithCategory extends BudgetGoal {
+  categories: Pick<Category, 'name' | 'icon' | 'color'>;
+}
+
+export type BudgetGoalFormData = Pick<BudgetGoal, 'category_id' | 'amount' | 'month'>;
+
+// Django API response types
+
+export interface BudgetCategorySummary {
+  category_id: string;
+  category_name: string;
+  icon: string | null;
+  color: string | null;
+  goal: number | null;
+  spent: number;
+  remaining: number | null;
+  percentage: number | null;
+}
+
+export interface BudgetSummaryResponse {
+  month: string;
+  overall: {
+    goal: number | null;
+    spent: number;
+    remaining: number | null;
+    percentage: number | null;
+  };
+  categories: BudgetCategorySummary[];
+}
+
+export interface MonthlyTrendMonth {
+  month: string; // 'YYYY-MM'
+  total: number;
+  categories: { category_name: string; amount: number }[];
+}
+
+export interface ExpenseTrendsResponse {
+  months: MonthlyTrendMonth[];
+}
+
+export interface ExpenseBreakdownResponse {
+  start_date: string;
+  end_date: string;
+  total: number;
+  breakdown: { category_name: string; amount: number; percentage: number }[];
+}

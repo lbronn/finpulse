@@ -74,6 +74,7 @@ export default function ExpensesPage() {
         onSubmit={handleSubmit}
         categories={categories}
         initialData={editTarget}
+        recentExpenses={expenses}
       />
     </div>
   );

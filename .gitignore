@@ -39,3 +39,7 @@ cache/
 .coverage
 htmlcov/
 
+# AI
+.claude
+
+

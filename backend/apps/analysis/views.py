@@ -1,3 +1,251 @@
-from django.shortcuts import render
+"""
+Analysis API views.
 
-# Create your views here.
+Summary: Exposes three endpoints that trigger AI analysis of expense data and
+budget goals, and return the results. All LLM calls are orchestrated by the
+service layer.
+
+Endpoints:
+    POST /api/analysis/expenses        → analyze_expenses
+    POST /api/analysis/recommendations → budget_recommendations
+    GET  /api/analysis/history         → analysis_history_list
+"""
+import logging
+from datetime import datetime
+
+from django.db.models import Count, Sum
+from django.db.models.functions import Coalesce
+from django.utils import timezone
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+from apps.analysis.models import AnalysisHistory
+
+logger = logging.getLogger(__name__)
+
+
+@api_view(['POST'])
+def analyze_expenses(request):
+    """
+    POST /api/analysis/expenses
+    Body: { "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD" }
+
+    Triggers AI analysis of expenses in the given date range.
+    Returns structured insights and stores in analysis_history.
+
+    Output:
+        {
+            "insights": [...],
+            "summary": "...",
+            "tokens_used": 1234,
+            "model_used": "claude-sonnet-4-20250514",
+            "history_id": "uuid"
+        }
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+    start_date = request.data.get('start_date')
+    end_date = request.data.get('end_date')
+
+    if not start_date:
+        return Response({'error': 'start_date is required'}, status=400)
+    if not end_date:
+        return Response({'error': 'end_date is required'}, status=400)
+
+    try:
+        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+    except ValueError:
+        return Response({'error': 'Dates must be in YYYY-MM-DD format'}, status=400)
+
+    if end_dt < start_dt:
+        return Response({'error': 'end_date must be on or after start_date'}, status=400)
+
+    currency = _get_user_currency(user_id)
+
+    try:
+        from services.expense_analyzer import ExpenseAnalyzer
+        result = ExpenseAnalyzer().analyze(
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+            currency=currency,
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f'Expense analysis failed for user {user_id}: {e}')
+        return Response(
+            {'error': 'Analysis failed. Please try again.'},
+            status=503,
+        )
+
+
+@api_view(['POST'])
+def budget_recommendations(request):
+    """
+    POST /api/analysis/recommendations
+    Body: { "month": "YYYY-MM" }
+
+    Triggers AI-powered budget recommendations for the given month.
+    Returns structured recommendations and stores in analysis_history.
+
+    Output:
+        {
+            "recommendations": [...],
+            "overall_advice": "...",
+            "tokens_used": 1234,
+            "model_used": "claude-sonnet-4-20250514",
+            "history_id": "uuid"
+        }
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+    month = request.data.get('month')
+
+    if not month:
+        return Response({'error': 'month is required'}, status=400)
+
+    try:
+        datetime.strptime(month, '%Y-%m')
+    except ValueError:
+        return Response({'error': 'month must be in YYYY-MM format'}, status=400)
+
+    currency = _get_user_currency(user_id)
+
+    try:
+        from services.budget_advisor import BudgetAdvisor
+        result = BudgetAdvisor().recommend(
+            user_id=user_id,
+            month=month,
+            currency=currency,
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f'Budget recommendations failed for user {user_id}: {e}')
+        return Response(
+            {'error': 'Recommendations failed. Please try again.'},
+            status=503,
+        )
+
+
+@api_view(['GET'])
+def analysis_history_list(request):
+    """
+    GET /api/analysis/history?type=expense_analysis&limit=10
+
+    Returns past analysis results for the authenticated user.
+
+    Query params:
+        type (str, optional): Filter by analysis_type
+        limit (int, optional): Max records to return. Default 20.
+
+    Output:
+        {
+            "history": [
+                {
+                    "id": "uuid",
+                    "analysis_type": "expense_analysis",
+                    "input_summary": {...},
+                    "result": {...},
+                    "model_used": "...",
+                    "tokens_used": 1234,
+                    "created_at": "ISO 8601"
+                },
+                ...
+            ]
+        }
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+    analysis_type = request.query_params.get('type')
+
+    try:
+        limit = int(request.query_params.get('limit', 20))
+        limit = max(1, min(limit, 100))  # clamp between 1 and 100
+    except ValueError:
+        limit = 20
+
+    qs = AnalysisHistory.objects.filter(user_id=user_id).order_by('-created_at')
+    if analysis_type:
+        qs = qs.filter(analysis_type=analysis_type)
+    qs = qs[:limit]
+
+    history = [
+        {
+            'id': str(record.id),
+            'analysis_type': record.analysis_type,
+            'input_summary': record.input_summary,
+            'result': record.result,
+            'model_used': record.model_used,
+            'tokens_used': record.tokens_used,
+            'created_at': record.created_at.isoformat() if record.created_at else None,
+        }
+        for record in qs
+    ]
+
+    return Response({'history': history})
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _get_user_currency(user_id: str) -> str:
+    """Fetch the user's currency preference from user_profiles. Defaults to PHP."""
+    from django.db import connection
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT currency FROM user_profiles WHERE id = %s',
+                [user_id],
+            )
+            row = cursor.fetchone()
+        return row[0] if row and row[0] else 'PHP'
+    except Exception as e:
+        logger.error(f'Failed to fetch currency for user {user_id}: {e}. Defaulting to PHP.')
+        return 'PHP'
+
+
+@api_view(['GET'])
+def token_usage_summary(request):
+    """
+    GET /api/analysis/token-usage
+
+    Returns AI token usage summary for the current calendar month.
+
+    Output:
+        {
+            "total_tokens": 12345,
+            "analysis_count": 5,
+            "estimated_cost_usd": 0.037
+        }
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+
+    now = timezone.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    agg = (
+        AnalysisHistory.objects
+        .filter(user_id=user_id, created_at__gte=month_start)
+        .aggregate(total_tokens=Coalesce(Sum('tokens_used'), 0), analysis_count=Count('id'))
+    )
+    total_tokens = agg['total_tokens']
+    analysis_count = agg['analysis_count'] or 0
+    # Claude Sonnet: ~$3/1M input + $15/1M output. Using $3/1M as conservative estimate.
+    estimated_cost_usd = round((total_tokens / 1_000_000) * 3.0, 4)
+
+    return Response({
+        'total_tokens': total_tokens,
+        'analysis_count': analysis_count,
+        'estimated_cost_usd': estimated_cost_usd,
+    })

@@ -151,7 +151,7 @@ CREATE POLICY "budget_goals_delete_own" ON budget_goals
 CREATE TABLE IF NOT EXISTS analysis_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    analysis_type VARCHAR(20) NOT NULL CHECK (analysis_type IN ('expense_analysis', 'budget_recommendation')),
+    analysis_type VARCHAR(30) NOT NULL CHECK (analysis_type IN ('expense_analysis', 'budget_recommendation')),
     input_summary JSONB NOT NULL,
     result JSONB NOT NULL,
     model_used VARCHAR(50) NOT NULL,

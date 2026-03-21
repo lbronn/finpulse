@@ -123,3 +123,53 @@ export interface ExpenseBreakdownResponse {
   total: number;
   breakdown: { category_name: string; amount: number; percentage: number }[];
 }
+
+// ---------------------------------------------------------------------------
+// Analysis API types (Phase 3)
+// ---------------------------------------------------------------------------
+
+export type InsightType = 'trend' | 'anomaly' | 'pattern' | 'comparison' | 'saving_opportunity';
+export type InsightSeverity = 'info' | 'success' | 'warning' | 'critical';
+export type RecommendationConfidence = 'high' | 'medium' | 'low';
+
+export interface Insight {
+  type: InsightType;
+  title: string;
+  description: string;
+  severity: InsightSeverity;
+}
+
+export interface Recommendation {
+  category: string;
+  current_goal: number;
+  suggested_goal: number;
+  reasoning: string;
+  confidence: RecommendationConfidence;
+  impact: string;
+}
+
+export interface ExpenseAnalysisResponse {
+  insights: Insight[];
+  summary: string;
+  tokens_used: number;
+  model_used: string;
+  history_id: string;
+}
+
+export interface BudgetRecommendationsResponse {
+  recommendations: Recommendation[];
+  overall_advice: string;
+  tokens_used: number;
+  model_used: string;
+  history_id: string;
+}
+
+export interface AnalysisHistoryResponse {
+  history: AnalysisHistory[];
+}
+
+export interface TokenUsageSummary {
+  total_tokens: number;
+  analysis_count: number;
+  estimated_cost_usd: number;
+}

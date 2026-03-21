@@ -119,7 +119,7 @@ Stores AI-generated analysis results for reference.
 |---|---|---|---|
 | id | UUID | PK, DEFAULT gen_random_uuid() | Analysis ID |
 | user_id | UUID | FK → auth.users.id, NOT NULL | Owner |
-| analysis_type | VARCHAR(20) | NOT NULL, CHECK IN ('expense_analysis', 'budget_recommendation') | Type of analysis |
+| analysis_type | VARCHAR(30) | NOT NULL, CHECK IN ('expense_analysis', 'budget_recommendation') | Type of analysis |
 | input_summary | JSONB | NOT NULL | Summary of data sent to LLM |
 | result | JSONB | NOT NULL | LLM response (structured) |
 | model_used | VARCHAR(50) | NOT NULL | Model identifier |

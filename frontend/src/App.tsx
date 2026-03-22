@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import { Toaster } from 'sonner';
 import { useAuthStore } from '@/stores/authStore';
 import AuthLayout from '@/components/layout/AuthLayout';
 import MainLayout from '@/components/layout/MainLayout';
@@ -33,6 +34,7 @@ export default function App() {
 
   return (
     <>
+      <Toaster position="top-center" richColors />
       <OfflineBanner />
       <BrowserRouter>
         <Routes>

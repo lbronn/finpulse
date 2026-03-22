@@ -1,8 +1,11 @@
 from datetime import date, datetime
 
+from django.core.cache import cache
 from django.db import connection
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from services.expense_parser import expense_parser
+from services.auto_categorizer import auto_categorizer, AutoCategorizer
 
 
 def _first_day_n_months_ago(today: date, n: int) -> date:
@@ -149,3 +152,102 @@ def expense_breakdown(request):
             for name, amt in breakdown
         ],
     })
+
+
+@api_view(['POST'])
+def parse_expense(request):
+    """
+    POST /api/expenses/parse
+    Body: { "text": "Jollibee lunch 250" }
+
+    Parses natural language into structured expense data.
+    Does NOT create the expense — returns parsed data for user confirmation.
+    Rate limited: 30 requests per minute per user.
+
+    Output:
+        200: { amount, description, category_id, category_name, expense_date, confidence, raw_text }
+        400: { error: "text is required" }
+        429: { error: "Rate limit exceeded. Try again in a minute." }
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+
+    # Rate limit: 30 requests per minute per user
+    cache_key = f'parse_ratelimit_{user_id}'
+    call_count = cache.get(cache_key, 0)
+    if call_count >= 30:
+        return Response({'error': 'Rate limit exceeded. Try again in a minute.'}, status=429)
+    cache.set(cache_key, call_count + 1, timeout=60)
+
+    raw_text = request.data.get('text', '').strip()
+
+    if not raw_text:
+        return Response({'error': 'text is required'}, status=400)
+
+    if len(raw_text) > 500:
+        return Response({'error': 'text must be under 500 characters'}, status=400)
+
+    # Get user currency from profile
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT currency FROM user_profiles WHERE id = %s", [user_id]
+        )
+        row = cursor.fetchone()
+        currency = row[0] if row else 'PHP'
+
+    result = expense_parser.parse(raw_text, user_id, currency)
+    return Response(result, status=200)
+
+
+@api_view(['POST'])
+def categorize_expense(request):
+    """
+    POST /api/expenses/categorize
+    Body: { "description": "Grab ride to office", "amount": 180.00 }
+
+    Returns a suggested category for the given expense.
+
+    Output:
+        200: { category_id, category_name, method, confidence }
+        400: { error: "description is required" }
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+    description = request.data.get('description', '').strip()
+    amount = request.data.get('amount', 0)
+
+    if not description:
+        return Response({'error': 'description is required'}, status=400)
+
+    result = auto_categorizer.categorize(description, float(amount), user_id)
+    return Response(result, status=200)
+
+
+@api_view(['POST'])
+def confirm_categorization(request):
+    """
+    POST /api/expenses/confirm-category
+    Body: { "description": "Grab ride to office", "category_id": "uuid" }
+
+    Records a confirmed categorization to improve future suggestions.
+    Call this AFTER the user saves an expense.
+
+    Output:
+        200: { "status": "recorded" }
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+    description = request.data.get('description', '').strip()
+    category_id = request.data.get('category_id', '').strip()
+
+    if not description or not category_id:
+        return Response({'error': 'description and category_id are required'}, status=400)
+
+    AutoCategorizer.record_categorization(user_id, description, category_id)
+    return Response({'status': 'recorded'}, status=200)

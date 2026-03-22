@@ -36,3 +36,17 @@ class Expense(models.Model):
 
     def __str__(self) -> str:
         return f'{self.description} — {self.amount}'
+
+
+class CategorizationHistory(models.Model):
+    id = models.UUIDField(primary_key=True)
+    user_id = models.UUIDField()
+    description_pattern = models.CharField(max_length=255)
+    category_id = models.UUIDField()
+    frequency = models.IntegerField(default=1)
+    last_used_at = models.DateTimeField()
+    created_at = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = 'categorization_history'

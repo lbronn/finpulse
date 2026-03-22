@@ -123,6 +123,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Anthropic LLM
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 ANTHROPIC_MODEL = os.environ.get('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514')
+ANTHROPIC_HAIKU_MODEL = os.getenv('ANTHROPIC_HAIKU_MODEL', 'claude-haiku-4-5-20251001')
 
 # Logging — WARNING level in production, DEBUG level in development
 LOGGING = {

@@ -173,3 +173,24 @@ export interface TokenUsageSummary {
   analysis_count: number;
   estimated_cost_usd: number;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 5 — Quick Capture types
+// ---------------------------------------------------------------------------
+
+export interface ParsedExpense {
+  amount: number | null;
+  description: string;
+  category_id: string | null;
+  category_name: string | null;
+  expense_date: string;
+  confidence: 'high' | 'medium' | 'low';
+  raw_text: string;
+}
+
+export interface AutoCategorizeResult {
+  category_id: string | null;
+  category_name: string | null;
+  method: 'pattern' | 'llm' | 'fallback';
+  confidence: 'high' | 'medium' | 'low';
+}

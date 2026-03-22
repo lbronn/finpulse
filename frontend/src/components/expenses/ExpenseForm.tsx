@@ -14,7 +14,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: ExpenseFormData) => Promise<void>;
   categories: Category[];
-  initialData?: Expense;
+  /** Accept either a full Expense (edit mode) or a partial ExpenseFormData (prefill from QuickCapture) */
+  initialData?: Expense | ExpenseFormData;
   /** Recent expenses used to sort "most used" categories to the top */
   recentExpenses?: Expense[];
 }
@@ -130,7 +131,7 @@ export default function ExpenseForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{initialData ? 'Edit Expense' : 'Add Expense'}</DialogTitle>
+          <DialogTitle>{initialData && 'id' in initialData ? 'Edit Expense' : 'Add Expense'}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 pt-2">
           {error && (
@@ -142,10 +143,9 @@ export default function ExpenseForm({
             <Label htmlFor="amount">Amount *</Label>
             <Input
               id="amount"
-              type="number"
+              type="text"
               inputMode="decimal"
-              step="0.01"
-              min="0.01"
+              pattern="[0-9]*\.?[0-9]*"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
@@ -217,7 +217,7 @@ export default function ExpenseForm({
           <DialogFooter>
             <Button type="button" variant="outline" className="min-h-[44px]" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button type="button" className="min-h-[44px]" onClick={handleSubmit} disabled={loading}>
-              {loading ? 'Saving...' : initialData ? 'Save changes' : 'Add expense'}
+              {loading ? 'Saving...' : (initialData && 'id' in initialData) ? 'Save changes' : 'Add expense'}
             </Button>
           </DialogFooter>
         </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pencil, Receipt, Trash2 } from 'lucide-react';
+import { SwipeableRow } from '@/components/ui/SwipeableRow';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -83,7 +84,8 @@ export default function ExpenseList({ expenses, loading, onEdit, onDelete }: Pro
     <>
       <div className="flex flex-col gap-2">
         {expenses.map((expense) => (
-          <Card key={expense.id}>
+          <SwipeableRow key={expense.id} onDelete={() => setDeleteTarget(expense.id)}>
+            <Card>
             <CardContent className="flex items-center gap-3 p-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -112,7 +114,8 @@ export default function ExpenseList({ expenses, loading, onEdit, onDelete }: Pro
                 </Button>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </SwipeableRow>
         ))}
       </div>
 

@@ -64,7 +64,7 @@ export default function SignUpPage() {
   if (confirmationSent) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
-        <Card className="w-full max-w-sm">
+        <Card className="w-full max-w-sm shadow-2xl ring-1 ring-white/10">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Check your email</CardTitle>
             <CardDescription>

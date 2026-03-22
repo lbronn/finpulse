@@ -42,10 +42,10 @@ export default function MainLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen">
       {/* ── Desktop Sidebar ─────────────────────────────────────── */}
       <aside
-        className={`hidden md:flex flex-col border-r p-3 gap-1 transition-all duration-200 ${
+        className={`glass-sidebar hidden md:flex flex-col p-3 gap-1 transition-all duration-200 ${
           collapsed ? 'w-16' : 'w-60'
         }`}
       >
@@ -120,7 +120,7 @@ export default function MainLayout() {
       {/* ── Main Content ─────────────────────────────────────────── */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile top bar */}
-        <header className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-background">
+        <header className="glass-header md:hidden flex items-center justify-between px-4 py-3">
           <h1 className="text-lg font-bold">FinPulse</h1>
           <NavLink
             to="/settings"
@@ -142,20 +142,24 @@ export default function MainLayout() {
       </div>
 
       {/* ── Mobile Bottom Navigation ──────────────────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t bg-background flex justify-around py-1 z-50">
+      <nav className="glass-nav md:hidden fixed bottom-0 left-0 right-0 flex justify-around z-50" style={{ height: 64 }}>
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/'}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 min-h-[48px] min-w-[48px] px-2 rounded-md text-xs transition-colors ${
+              `flex flex-col items-center justify-center gap-0.5 flex-1 px-2 rounded-md text-xs transition-all duration-100 active:scale-95 ${
                 isActive ? 'text-primary' : 'text-muted-foreground'
               }`
             }
           >
-            <Icon className="h-5 w-5" />
-            <span className="text-[10px]">{label}</span>
+            {({ isActive }) => (
+              <>
+                <Icon className={`h-5 w-5 ${isActive ? 'fill-primary stroke-primary' : ''}`} />
+                {isActive && <span className="text-[10px] font-medium">{label}</span>}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>

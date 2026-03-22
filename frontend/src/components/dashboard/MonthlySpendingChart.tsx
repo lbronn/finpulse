@@ -8,6 +8,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatMonth } from '@/lib/formatters';
 import type { ExpenseTrendsResponse } from '@/types';
 
@@ -24,6 +25,15 @@ function formatYAxis(value: number): string {
 }
 
 export default function MonthlySpendingChart({ data, currency, loading }: Props) {
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader><Skeleton className="h-5 w-1/3" /></CardHeader>
+        <CardContent><Skeleton className="h-[200px] w-full" /></CardContent>
+      </Card>
+    );
+  }
+
   const chartData = data?.months.map((m) => ({
     month: formatMonth(m.month),
     total: m.total,
@@ -35,11 +45,7 @@ export default function MonthlySpendingChart({ data, currency, loading }: Props)
         <CardTitle className="text-base">Monthly Spending (Last 6 Months)</CardTitle>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">
-            Loading chart...
-          </div>
-        ) : chartData.length === 0 ? (
+        {chartData.length === 0 ? (
           <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">
             No spending data yet.
           </div>

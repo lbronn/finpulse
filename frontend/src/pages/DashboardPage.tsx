@@ -7,6 +7,7 @@ import MonthlySpendingChart from '@/components/dashboard/MonthlySpendingChart';
 import CategoryBreakdownChart from '@/components/dashboard/CategoryBreakdownChart';
 import BudgetStatusStrip from '@/components/dashboard/BudgetStatusStrip';
 import QuickAddExpense from '@/components/dashboard/QuickAddExpense';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/stores/authStore';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useCategories } from '@/hooks/useCategories';
@@ -59,7 +60,7 @@ export default function DashboardPage() {
     fetchExpenses({ startDate, endDate: today });
     fetchEntries();
     fetchDashboardData();
-  }, [fetchExpenses, fetchEntries, fetchDashboardData]);
+  }, [fetchExpenses, fetchEntries, fetchDashboardData, startDate, today]);
 
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
 
@@ -73,7 +74,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Welcome, {profile?.display_name ?? '...'}</h1>
@@ -82,24 +83,30 @@ export default function DashboardPage() {
 
       {/* KPI summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <SummaryCard
-          title="Spent This Month"
-          value={formatCurrency(totalSpent, currency)}
-          description={`${expenses.length} transactions`}
-          icon={TrendingUp}
-        />
-        <SummaryCard
-          title="Expenses"
-          value={expenses.length}
-          description="This month"
-          icon={Receipt}
-        />
-        <SummaryCard
-          title="Journal Entries"
-          value={journalEntries.length}
-          description="All time"
-          icon={BookOpen}
-        />
+        {chartsLoading ? (
+          [...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
+        ) : (
+          <>
+            <SummaryCard
+              title="Spent This Month"
+              value={formatCurrency(totalSpent, currency)}
+              description={`${expenses.length} transactions`}
+              icon={TrendingUp}
+            />
+            <SummaryCard
+              title="Expenses"
+              value={expenses.length}
+              description="This month"
+              icon={Receipt}
+            />
+            <SummaryCard
+              title="Journal Entries"
+              value={journalEntries.length}
+              description="All time"
+              icon={BookOpen}
+            />
+          </>
+        )}
       </div>
 
       {chartsError && (

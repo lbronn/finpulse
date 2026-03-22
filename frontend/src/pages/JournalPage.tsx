@@ -43,10 +43,10 @@ export default function JournalPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <h1 className="text-2xl font-bold">Journal</h1>
-        <Button onClick={() => setFormOpen(true)}>
+        <Button className="min-h-[44px]" onClick={() => setFormOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           New entry
         </Button>

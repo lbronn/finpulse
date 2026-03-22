@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Receipt, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,11 +52,31 @@ export default function ExpenseList({ expenses, loading, onEdit, onDelete }: Pro
   };
 
   if (loading) {
-    return <p className="text-muted-foreground text-sm py-8 text-center">Loading expenses...</p>;
+    return (
+      <div className="flex flex-col gap-2">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3 rounded-lg border p-4">
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-3 w-1/3" />
+            </div>
+            <Skeleton className="h-6 w-20" />
+          </div>
+        ))}
+      </div>
+    );
   }
 
   if (expenses.length === 0) {
-    return <p className="text-muted-foreground text-sm py-8 text-center">No expenses found. Add your first one!</p>;
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16 text-center">
+        <Receipt className="h-10 w-10 text-muted-foreground" />
+        <div>
+          <p className="font-medium">No expenses yet</p>
+          <p className="text-sm text-muted-foreground">Add your first expense to start tracking</p>
+        </div>
+      </div>
+    );
   }
 
   return (

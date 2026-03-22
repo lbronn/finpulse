@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { ExpenseBreakdownResponse } from '@/types';
 
 // Fallback palette if categories don't have their own colors
@@ -15,6 +16,15 @@ interface Props {
 }
 
 export default function CategoryBreakdownChart({ data, loading, currency }: Props) {
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader><Skeleton className="h-5 w-1/3" /></CardHeader>
+        <CardContent><Skeleton className="h-[200px] w-full" /></CardContent>
+      </Card>
+    );
+  }
+
   const chartData = data?.breakdown.map((item, i) => ({
     name: item.category_name,
     value: item.amount,
@@ -28,11 +38,7 @@ export default function CategoryBreakdownChart({ data, loading, currency }: Prop
         <CardTitle className="text-base">Spending by Category</CardTitle>
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">
-            Loading chart...
-          </div>
-        ) : chartData.length === 0 ? (
+        {chartData.length === 0 ? (
           <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">
             No spending data yet.
           </div>
@@ -48,8 +54,8 @@ export default function CategoryBreakdownChart({ data, loading, currency }: Prop
                 paddingAngle={2}
                 dataKey="value"
               >
-                {chartData.map((entry, index) => (
-                  <Cell key={index} fill={entry.fill} />
+                {chartData.map((entry) => (
+                  <Cell key={entry.name} fill={entry.fill} />
                 ))}
               </Pie>
               <Tooltip

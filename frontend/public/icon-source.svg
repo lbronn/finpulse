@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#09090b"/>
+  <polyline
+    points="64,256 160,256 192,128 224,384 272,192 304,320 336,256 448,256"
+    fill="none"
+    stroke="#22c55e"
+    stroke-width="32"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <text x="256" y="460" font-family="system-ui,sans-serif" font-size="72" font-weight="700"
+    fill="#ffffff" text-anchor="middle" opacity="0.6">FP</text>
+</svg>

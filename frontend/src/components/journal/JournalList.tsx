@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { BookOpen, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,8 +46,31 @@ export default function JournalList({ entries, loading, onEdit, onDelete }: Prop
     }
   };
 
-  if (loading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading journal...</p>;
-  if (entries.length === 0) return <p className="text-muted-foreground text-sm py-8 text-center">No entries yet. Start journaling!</p>;
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="rounded-lg border p-4 space-y-2">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-2/3" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (entries.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16 text-center">
+        <BookOpen className="h-10 w-10 text-muted-foreground" />
+        <div>
+          <p className="font-medium">No journal entries yet</p>
+          <p className="text-sm text-muted-foreground">Start journaling your financial decisions</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import ExpenseList from '@/components/expenses/ExpenseList';
@@ -7,6 +7,7 @@ import ExpenseForm from '@/components/expenses/ExpenseForm';
 import ExpenseFilters from '@/components/expenses/ExpenseFilters';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useCategories } from '@/hooks/useCategories';
+import { exportExpensesToCSV } from '@/lib/export';
 import type { Expense, ExpenseFilters as Filters } from '@/types';
 
 export default function ExpensesPage() {
@@ -39,13 +40,24 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <h1 className="text-2xl font-bold">Expenses</h1>
-        <Button onClick={() => setFormOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add expense
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => exportExpensesToCSV(expenses)}
+            disabled={expenses.length === 0}
+            className="min-h-[44px]"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button onClick={() => setFormOpen(true)} className="min-h-[44px]">
+            <Plus className="h-4 w-4 mr-2" />
+            Add expense
+          </Button>
+        </div>
       </div>
 
       <div className="mb-4">

@@ -22,14 +22,15 @@ logger = logging.getLogger(__name__)
 # Prompt constants
 # ---------------------------------------------------------------------------
 
-BUDGET_RECOMMENDATION_SYSTEM_PROMPT = """You are a personal budget advisor. You analyze spending patterns, current budget goals, and personal journal context to provide realistic budget adjustment recommendations.
+BUDGET_RECOMMENDATION_SYSTEM_PROMPT = """You are a personal budget advisor. You interpret pre-computed spending patterns and behavioral context to provide realistic budget adjustment recommendations.
+
+CRITICAL: The patterns, trends, and anomalies below are already computed from the user's actual data. Your job is to INTERPRET them and recommend specific budget adjustments. Do NOT re-derive numbers; use what is provided.
 
 RULES:
-- Recommendations must be grounded in the actual data provided.
-- Reference specific categories and amounts.
-- Consider the user's journal entries for context about WHY they spend in certain ways.
-- Be realistic — don't suggest cutting categories to zero unless the user has indicated they want to.
-- Explain the reasoning behind each recommendation.
+- Recommendations must reference specific amounts, categories, and trends from the context.
+- Consider journal entries for WHY spending changed — reference them explicitly.
+- Be realistic — don't suggest cutting categories to zero unless the user indicated they want to.
+- If a category is over budget, explain why based on the data, then suggest an adjustment.
 - Use the user's currency ({currency}) in all monetary references.
 - If the user is generally on track, say so — don't force recommendations.
 
@@ -41,33 +42,22 @@ You MUST respond with valid JSON only. No markdown, no explanation outside the J
             "category": "Category name",
             "current_goal": 15000.00,
             "suggested_goal": 12000.00,
-            "reasoning": "Specific reasoning referencing data and journal context",
+            "reasoning": "Specific reasoning referencing patterns, amounts, and journal context",
             "confidence": "high|medium|low",
-            "impact": "Human-readable impact statement"
+            "impact": "Human-readable impact statement with specific numbers"
         }}
     ],
-    "overall_advice": "1-2 paragraph overall budget advice"
+    "overall_advice": "1-2 paragraph overall budget advice grounded in the pre-computed patterns"
 }}
 
 Provide 2-5 recommendations. Only include categories where you have a meaningful suggestion.
 """
 
-BUDGET_RECOMMENDATION_USER_PROMPT = """Review my budget and spending for {month}.
+BUDGET_RECOMMENDATION_USER_PROMPT = """Review my budget and provide recommendations based on this pre-computed financial data:
 
-CURRENT BUDGET GOALS:
-{budget_goals}
+{formatted_context}
 
-ACTUAL SPENDING THIS MONTH:
-{spending_summary}
-
-SPENDING TRENDS (last 3 months):
-{spending_trends}
-
-RECENT JOURNAL ENTRIES (for context):
-{journal_entries}
-
-Provide your budget recommendations as JSON.
-"""
+Provide your budget recommendations as JSON."""
 
 PARSE_FAILURE_ADVICE = (
     'We could not parse the AI response for this request. '
@@ -100,19 +90,14 @@ class BudgetAdvisor:
                 - model_used (str): Model identifier
                 - history_id (str): UUID of the stored analysis_history record
         """
-        budget_goals = self._fetch_budget_goals(user_id, month)
-        spending_summary = self._fetch_spending_for_month(user_id, month)
-        spending_trends = self._fetch_spending_trends(user_id, month)
-        journal_entries = self._fetch_journal_entries(user_id, month)
+        from services.financial_context import financial_context_engine
+        context = financial_context_engine.build_context(user_id)
+        formatted = financial_context_engine.format_for_prompt(context)
+        goal_count = len(context['budget_status'])
 
-        system = BUDGET_RECOMMENDATION_SYSTEM_PROMPT.format(currency=currency)
-        user_prompt = BUDGET_RECOMMENDATION_USER_PROMPT.format(
-            month=month,
-            budget_goals=self._format_budget_goals(budget_goals),
-            spending_summary=self._format_spending_summary(spending_summary),
-            spending_trends=self._format_spending_trends(spending_trends),
-            journal_entries=self._format_journal_entries(journal_entries),
-        )
+        system = BUDGET_RECOMMENDATION_SYSTEM_PROMPT.replace('{currency}', currency)
+        # Use replace() to avoid KeyError if journal content contains literal braces
+        user_prompt = BUDGET_RECOMMENDATION_USER_PROMPT.replace('{formatted_context}', formatted)
 
         llm = get_llm_client()
         llm_result = llm.complete(system_prompt=system, user_prompt=user_prompt)
@@ -121,7 +106,7 @@ class BudgetAdvisor:
 
         history_id = self._store_result(
             user_id=user_id,
-            input_summary={'month': month, 'goal_count': len(budget_goals)},
+            input_summary={'month': month, 'goal_count': goal_count},
             result=parsed,
             model_used=llm_result['model'],
             tokens_used=llm_result['tokens_used'],

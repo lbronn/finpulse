@@ -17,6 +17,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
+import { ChatInterface } from '@/components/features/Chat/ChatInterface';
+import { ChatSessionSidebar } from '@/components/features/Chat/ChatSessionSidebar';
+import { useFinanceChat } from '@/hooks/useFinanceChat';
 import type {
   ExpenseAnalysisResponse,
   BudgetRecommendationsResponse,
@@ -144,6 +147,7 @@ function SkeletonCard() {
 function HistoryItem({ record }: { record: AnalysisHistory }) {
   const [expanded, setExpanded] = useState(false);
   const isExpense = record.analysis_type === 'expense_analysis';
+  const isDigest = record.analysis_type === 'weekly_digest';
   const result = record.result as Record<string, unknown>;
 
   return (
@@ -154,8 +158,8 @@ function HistoryItem({ record }: { record: AnalysisHistory }) {
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Badge variant={isExpense ? 'default' : 'secondary'}>
-              {isExpense ? 'Expense Analysis' : 'Budget Recommendations'}
+            <Badge variant={isExpense ? 'default' : isDigest ? 'outline' : 'secondary'}>
+              {isExpense ? 'Expense Analysis' : isDigest ? 'Weekly Digest' : 'Budget Recommendations'}
             </Badge>
             <span className="text-xs text-muted-foreground">
               {record.created_at
@@ -190,6 +194,17 @@ function HistoryItem({ record }: { record: AnalysisHistory }) {
                 <p className="mt-4 text-sm text-muted-foreground">{result.summary as string}</p>
               )}
             </>
+          ) : isDigest ? (
+            <div className="space-y-2">
+              {result.headline && (
+                <p className="font-semibold text-sm">{result.headline as string}</p>
+              )}
+              {result.body && (
+                <p className="text-sm text-muted-foreground whitespace-pre-line">
+                  {result.body as string}
+                </p>
+              )}
+            </div>
           ) : (
             <>
               {(result.recommendations as Recommendation[] | undefined)?.map((rec) => (
@@ -523,6 +538,35 @@ function HistoryTab() {
 }
 
 // ---------------------------------------------------------------------------
+// Chat tab
+// ---------------------------------------------------------------------------
+
+function ChatTab() {
+  const { messages, loading, sendMessage, sessionId, loadSession, startNewSession } = useFinanceChat();
+
+  return (
+    <div className="flex gap-4">
+      {/* Sidebar: hidden on mobile, visible on md+ */}
+      <div className="hidden md:block w-52 shrink-0">
+        <ChatSessionSidebar
+          currentSessionId={sessionId}
+          onSelectSession={loadSession}
+        />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <ChatInterface
+          messages={messages}
+          loading={loading}
+          onSend={sendMessage}
+          onNewSession={startNewSession}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page root
 // ---------------------------------------------------------------------------
 
@@ -536,12 +580,17 @@ export default function AnalysisPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="expenses">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="expenses">Expense Analysis</TabsTrigger>
-          <TabsTrigger value="recommendations">Budget Recs</TabsTrigger>
+      <Tabs defaultValue="chat">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="chat">Chat</TabsTrigger>
+          <TabsTrigger value="expenses">Insights</TabsTrigger>
+          <TabsTrigger value="recommendations">Budget</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="chat" className="mt-4">
+          <ChatTab />
+        </TabsContent>
 
         <TabsContent value="expenses" className="mt-4">
           <ExpenseAnalysisTab />

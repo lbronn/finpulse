@@ -7,6 +7,7 @@ import CategoryBreakdownChart from '@/components/dashboard/CategoryBreakdownChar
 import BudgetStatusStrip from '@/components/dashboard/BudgetStatusStrip';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
 import { QuickCapture } from '@/components/features/QuickCapture/QuickCapture';
+import { WeeklyDigestCard } from '@/components/features/WeeklyDigestCard';
 import { useAuthStore } from '@/stores/authStore';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useCategories } from '@/hooks/useCategories';
@@ -101,6 +102,11 @@ export default function DashboardPage() {
           {getGreeting()}, {profile?.display_name ?? '...'}
         </h1>
         <p className="text-muted-foreground text-sm">{formatDate(now)}</p>
+      </div>
+
+      {/* Weekly Digest Card — above monthly summary */}
+      <div className="mb-5">
+        <WeeklyDigestCard />
       </div>
 
       {/* Monthly summary strip */}

@@ -22,51 +22,40 @@ logger = logging.getLogger(__name__)
 # Prompt constants
 # ---------------------------------------------------------------------------
 
-EXPENSE_ANALYSIS_SYSTEM_PROMPT = """You are a personal finance analyst. You analyze expense data and provide actionable insights.
+EXPENSE_ANALYSIS_SYSTEM_PROMPT = """You are a personal finance analyst. You interpret pre-computed spending patterns and anomalies to provide actionable insights.
+
+CRITICAL: The behavioral patterns, trends, and anomalies below have already been computed from the user's actual data. Your job is to INTERPRET them — explain what they mean, why they matter, and what the user should do about them. Do NOT re-derive the numbers; they are already correct.
 
 RULES:
-- Base ALL insights on the actual data provided. Never fabricate numbers or trends.
-- Be specific — reference actual categories, amounts, and dates from the data.
-- Use the user's currency ({currency}) in all monetary references.
-- Keep insights concise — 2-3 sentences each.
-- Focus on what's actionable, not just observational.
-- If the data is insufficient for meaningful analysis (e.g., less than 2 weeks of data), say so.
+- Every insight must reference specific data from the context (a category, an amount, a trend).
+- Do NOT give generic finance advice ("save more", "track spending"). The user already tracks spending — that's why you have this data.
+- Be specific and actionable: "Your food spending jumped 34% this month to ₱18,200, mostly driven by dining out on weekends" is good. "Consider reducing food expenses" is bad.
+- If journal entries explain a spending change, reference them: "Your transportation dropped because you mentioned starting to bike to work on March 5."
+- Use the user's currency ({currency}) in all amounts.
+- If data is insufficient (<2 weeks or <10 expenses), say so honestly and provide what limited insights you can.
 
 RESPONSE FORMAT:
-You MUST respond with valid JSON only. No markdown, no explanation outside the JSON.
+Respond ONLY with valid JSON. No markdown, no explanation outside the JSON.
 {{
     "insights": [
         {{
             "type": "trend|anomaly|pattern|comparison|saving_opportunity",
             "title": "Short title (max 10 words)",
-            "description": "2-3 sentence insight with specific numbers",
+            "description": "2-3 sentence insight with specific numbers from the context",
             "severity": "info|success|warning|critical"
         }}
     ],
-    "summary": "1-2 paragraph overall assessment"
+    "summary": "1-2 paragraph overall assessment connecting the key patterns together"
 }}
 
-Provide 3-7 insights depending on data richness. Prioritize:
-1. Anomalies (unusual spikes or drops)
-2. Trends (consistent increases/decreases over time)
-3. Saving opportunities (categories with potential to cut)
-4. Patterns (recurring behaviors)
-5. Comparisons (month-over-month changes)
+Provide 3-7 insights. Prioritize: anomalies first, then trends, then saving opportunities.
 """
 
-EXPENSE_ANALYSIS_USER_PROMPT = """Analyze my spending data from {start_date} to {end_date}.
+EXPENSE_ANALYSIS_USER_PROMPT = """Analyze my financial situation based on this data:
 
-EXPENSE DATA:
-{expense_data}
+{formatted_context}
 
-MONTHLY TOTALS:
-{monthly_totals}
-
-CATEGORY BREAKDOWN:
-{category_breakdown}
-
-Provide your analysis as JSON.
-"""
+Provide your analysis as JSON."""
 
 PARSE_FAILURE_INSIGHT = {
     'type': 'pattern',
@@ -106,18 +95,14 @@ class ExpenseAnalyzer:
                 - model_used (str): Model identifier
                 - history_id (str): UUID of the stored analysis_history record
         """
-        expenses = self._fetch_expenses(user_id, start_date, end_date)
-        monthly_totals = self._compute_monthly_totals(expenses)
-        category_breakdown = self._compute_category_breakdown(expenses)
+        from services.financial_context import financial_context_engine
+        context = financial_context_engine.build_context(user_id)
+        formatted = financial_context_engine.format_for_prompt(context)
+        expense_count = context['summary']['transaction_count']
 
-        system = EXPENSE_ANALYSIS_SYSTEM_PROMPT.format(currency=currency)
-        user_prompt = EXPENSE_ANALYSIS_USER_PROMPT.format(
-            start_date=start_date,
-            end_date=end_date,
-            expense_data=self._format_expense_table(expenses),
-            monthly_totals=self._format_monthly_totals(monthly_totals),
-            category_breakdown=self._format_category_breakdown(category_breakdown),
-        )
+        system = EXPENSE_ANALYSIS_SYSTEM_PROMPT.replace('{currency}', currency)
+        # Use replace() to avoid KeyError if journal content contains literal braces
+        user_prompt = EXPENSE_ANALYSIS_USER_PROMPT.replace('{formatted_context}', formatted)
 
         llm = get_llm_client()
         llm_result = llm.complete(system_prompt=system, user_prompt=user_prompt)
@@ -130,7 +115,7 @@ class ExpenseAnalyzer:
             input_summary={
                 'start_date': start_date,
                 'end_date': end_date,
-                'expense_count': len(expenses),
+                'expense_count': expense_count,
             },
             result=parsed,
             model_used=llm_result['model'],

@@ -1,21 +1,25 @@
 """
 Analysis API views.
 
-Summary: Exposes three endpoints that trigger AI analysis of expense data and
-budget goals, and return the results. All LLM calls are orchestrated by the
-service layer.
+Summary: Exposes endpoints that trigger AI analysis of expense data, budget
+goals, conversational finance chat, and weekly spending digests.
+All LLM calls are orchestrated by the service layer.
 
 Endpoints:
-    POST /api/analysis/expenses        → analyze_expenses
-    POST /api/analysis/recommendations → budget_recommendations
-    GET  /api/analysis/history         → analysis_history_list
+    POST /api/analysis/expenses                        → analyze_expenses
+    POST /api/analysis/recommendations                 → budget_recommendations
+    GET  /api/analysis/history                         → analysis_history_list
+    POST /api/analysis/chat                            → chat_message
+    GET  /api/analysis/chat/sessions                   → chat_sessions_list
+    GET  /api/analysis/chat/sessions/<id>/messages     → chat_session_messages
+    GET  /api/analysis/digest/latest                   → latest_digest
 """
 import logging
 import time
 from datetime import datetime
 
 from django.core.cache import cache
-
+from django.db import connection
 from django.db.models import Count, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
@@ -282,3 +286,150 @@ def token_usage_summary(request):
         'analysis_count': analysis_count,
         'estimated_cost_usd': estimated_cost_usd,
     })
+
+
+# ---------------------------------------------------------------------------
+# Chat endpoints
+# ---------------------------------------------------------------------------
+
+@api_view(['POST'])
+def chat_message(request):
+    """
+    POST /api/analysis/chat
+    Body: { "message": "How much did I spend on food this month?", "session_id": "uuid" | null }
+
+    Output:
+        200: { session_id, response, tokens_used }
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+
+    if not _check_rate_limit(user_id, 'chat_message', max_calls=15, window_seconds=3600):
+        return Response(
+            {'error': 'Rate limit exceeded. Please wait a moment.'},
+            status=429,
+        )
+
+    message = request.data.get('message', '').strip()
+    session_id = request.data.get('session_id')
+
+    if not message:
+        return Response({'error': 'message is required'}, status=400)
+    if len(message) > 2000:
+        return Response({'error': 'message must be under 2000 characters'}, status=400)
+
+    try:
+        from services.finance_chat import finance_chat
+        result = finance_chat.send_message(user_id, session_id, message)
+        return Response(result, status=200)
+    except Exception as e:
+        logger.exception(f'Chat error for user {user_id}: {e}')
+        return Response({'error': 'Chat service temporarily unavailable.'}, status=503)
+
+
+@api_view(['GET'])
+def chat_sessions_list(request):
+    """
+    GET /api/analysis/chat/sessions?limit=20
+
+    Returns the user's chat sessions (most recent first).
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+    limit = min(int(request.query_params.get('limit', 20)), 50)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id::text, title, created_at, updated_at
+            FROM chat_sessions
+            WHERE user_id = %s
+            ORDER BY updated_at DESC
+            LIMIT %s
+            """,
+            [user_id, limit],
+        )
+        sessions = [
+            {
+                'id': row[0],
+                'title': row[1],
+                'created_at': row[2].isoformat(),
+                'updated_at': row[3].isoformat(),
+            }
+            for row in cursor.fetchall()
+        ]
+    return Response(sessions, status=200)
+
+
+@api_view(['GET'])
+def chat_session_messages(request, session_id):
+    """
+    GET /api/analysis/chat/sessions/<session_id>/messages
+
+    Returns all messages in a chat session.
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            'SELECT id FROM chat_sessions WHERE id = %s AND user_id = %s',
+            [session_id, user_id],
+        )
+        if not cursor.fetchone():
+            return Response({'error': 'Session not found'}, status=404)
+
+        cursor.execute(
+            """
+            SELECT role, content, created_at FROM chat_messages
+            WHERE session_id = %s AND user_id = %s
+            ORDER BY created_at ASC
+            """,
+            [session_id, user_id],
+        )
+        messages = [
+            {'role': row[0], 'content': row[1], 'created_at': row[2].isoformat()}
+            for row in cursor.fetchall()
+        ]
+    return Response(messages, status=200)
+
+
+# ---------------------------------------------------------------------------
+# Weekly digest endpoint
+# ---------------------------------------------------------------------------
+
+@api_view(['GET'])
+def latest_digest(request):
+    """
+    GET /api/analysis/digest/latest
+
+    Returns the most recent weekly digest, if one exists from the past 7 days.
+
+    Output:
+        200: { digest: {...} | null, generated_at: ISO string | null }
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT result, created_at FROM analysis_history
+            WHERE user_id = %s AND analysis_type = 'weekly_digest'
+            AND created_at >= CURRENT_DATE - INTERVAL '7 days'
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            [user_id],
+        )
+        row = cursor.fetchone()
+        if not row:
+            return Response({'digest': None, 'generated_at': None}, status=200)
+        return Response({'digest': row[0], 'generated_at': row[1].isoformat()}, status=200)

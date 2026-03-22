@@ -57,7 +57,7 @@ export interface BudgetGoal {
 export interface AnalysisHistory {
   id: string;
   user_id: string;
-  analysis_type: 'expense_analysis' | 'budget_recommendation';
+  analysis_type: 'expense_analysis' | 'budget_recommendation' | 'weekly_digest';
   input_summary: Record<string, unknown>;
   result: Record<string, unknown>;
   model_used: string;
@@ -193,4 +193,48 @@ export interface AutoCategorizeResult {
   category_name: string | null;
   method: 'pattern' | 'llm' | 'fallback';
   confidence: 'high' | 'medium' | 'low';
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6 — Chat and Weekly Digest types
+// ---------------------------------------------------------------------------
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+  isError?: boolean;
+}
+
+export interface ChatResponse {
+  session_id: string;
+  response: string;
+  tokens_used: number;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WeeklyDigestKeyStat {
+  label: string;
+  value: string;
+  detail: string;
+}
+
+export type DigestMood = 'on_track' | 'needs_attention' | 'over_budget' | 'great_week';
+
+export interface WeeklyDigest {
+  headline: string;
+  body: string;
+  key_stat: WeeklyDigestKeyStat;
+  mood: DigestMood;
+}
+
+export interface WeeklyDigestResponse {
+  digest: WeeklyDigest | null;
+  generated_at: string | null;
 }

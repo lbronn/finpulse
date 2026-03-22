@@ -143,6 +143,7 @@ export default function ExpenseForm({
             <Input
               id="amount"
               type="number"
+              inputMode="decimal"
               step="0.01"
               min="0.01"
               value={amount}
@@ -214,8 +215,8 @@ export default function ExpenseForm({
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="button" onClick={handleSubmit} disabled={loading}>
+            <Button type="button" variant="outline" className="min-h-[44px]" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="button" className="min-h-[44px]" onClick={handleSubmit} disabled={loading}>
               {loading ? 'Saving...' : initialData ? 'Save changes' : 'Add expense'}
             </Button>
           </DialogFooter>

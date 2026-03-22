@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Target } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import MonthSelector from '@/components/budget/MonthSelector';
 import OverallBudgetCard from '@/components/budget/OverallBudgetCard';
 import CategoryBudgetGrid from '@/components/budget/CategoryBudgetGrid';
@@ -130,7 +132,7 @@ export default function BudgetPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold">Budget</h1>
@@ -155,7 +157,24 @@ export default function BudgetPage() {
       {/* Category grid */}
       <h2 className="text-lg font-semibold mb-3">Category Budgets</h2>
       {summaryLoading ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="rounded-lg border p-4 space-y-3">
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-2 w-full rounded-full" />
+              <Skeleton className="h-3 w-1/3" />
+            </div>
+          ))}
+        </div>
+      ) : (summary?.categories ?? []).length === 0 && !summaryError ? (
+        <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16 text-center">
+          <Target className="h-10 w-10 text-muted-foreground" />
+          <div>
+            <p className="font-medium">No budget goals yet</p>
+            <p className="text-sm text-muted-foreground">Set your first budget goal to start tracking</p>
+          </div>
+          <Button onClick={() => setGoalDialogOpen(true)}>Set a budget goal</Button>
+        </div>
       ) : (
         <CategoryBudgetGrid
           categories={summary?.categories ?? []}

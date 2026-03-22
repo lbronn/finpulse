@@ -305,6 +305,13 @@ function ExpenseAnalysisTab() {
         </div>
       )}
 
+      {/* Prompt when idle */}
+      {!result && !loading && !error && (
+        <p className="text-center text-sm text-muted-foreground py-8">
+          Select a date range and click "Analyze My Spending" to see insights.
+        </p>
+      )}
+
       {/* Results */}
       {result && !loading && (
         <>
@@ -407,6 +414,13 @@ function BudgetRecommendationsTab() {
         </div>
       )}
 
+      {/* Prompt when idle */}
+      {!result && !loading && !error && (
+        <p className="text-center text-sm text-muted-foreground py-8">
+          Select a month and click "Get Recommendations" to see advice.
+        </p>
+      )}
+
       {/* Results */}
       {result && !loading && (
         <>
@@ -466,7 +480,7 @@ function HistoryTab() {
   // Load on first render
   useEffect(() => {
     loadHistory();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-3">
@@ -491,10 +505,12 @@ function HistoryTab() {
 
       {history && !loading && history.length === 0 && (
         <Card>
-          <CardContent className="pt-5">
-            <p className="text-sm text-muted-foreground">
-              No analysis history yet. Run your first analysis above.
-            </p>
+          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+            <BarChart2 className="h-10 w-10 text-muted-foreground" />
+            <div>
+              <p className="font-medium">No analyses run yet</p>
+              <p className="text-sm text-muted-foreground">Run your first analysis to see insights here</p>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -512,7 +528,7 @@ function HistoryTab() {
 
 export default function AnalysisPage() {
   return (
-    <div className="p-4 space-y-4 max-w-3xl">
+    <div className="p-4 md:p-6 lg:p-8 space-y-4 max-w-4xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold">AI Analysis</h1>
         <p className="text-sm text-muted-foreground">

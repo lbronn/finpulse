@@ -11,7 +11,10 @@ Endpoints:
     GET  /api/analysis/history         → analysis_history_list
 """
 import logging
+import time
 from datetime import datetime
+
+from django.core.cache import cache
 
 from django.db.models import Count, Sum
 from django.db.models.functions import Coalesce
@@ -22,6 +25,26 @@ from rest_framework.response import Response
 from apps.analysis.models import AnalysisHistory
 
 logger = logging.getLogger(__name__)
+
+
+def _check_rate_limit(user_id: str, endpoint: str, max_calls: int = 10, window_seconds: int = 3600) -> bool:
+    """
+    Returns True if the user is within the rate limit, False if exceeded.
+    Uses Django cache with atomic incr() to count calls per user per endpoint per hour window.
+    """
+    window_start = int(time.time() // window_seconds)
+    cache_key = f'ratelimit:{endpoint}:{user_id}:{window_start}'
+    # cache.add() is atomic: sets to 1 only if key absent, returns False if already exists.
+    added = cache.add(cache_key, 1, timeout=window_seconds)
+    if added:
+        return True  # first call in this window
+    try:
+        count = cache.incr(cache_key)
+    except ValueError:
+        # Key expired between add() and incr() — treat as first call.
+        cache.set(cache_key, 1, timeout=window_seconds)
+        return True
+    return count <= max_calls
 
 
 @api_view(['POST'])
@@ -46,6 +69,11 @@ def analyze_expenses(request):
         return Response({'error': 'Authentication required'}, status=401)
 
     user_id = request.user_id
+    if not _check_rate_limit(user_id, 'analyze_expenses'):
+        return Response(
+            {'error': 'Rate limit exceeded. Maximum 10 analyses per hour. Please try again later.'},
+            status=429,
+        )
     start_date = request.data.get('start_date')
     end_date = request.data.get('end_date')
 
@@ -104,6 +132,11 @@ def budget_recommendations(request):
         return Response({'error': 'Authentication required'}, status=401)
 
     user_id = request.user_id
+    if not _check_rate_limit(user_id, 'budget_recommendations'):
+        return Response(
+            {'error': 'Rate limit exceeded. Maximum 10 recommendations per hour. Please try again later.'},
+            status=429,
+        )
     month = request.data.get('month')
 
     if not month:

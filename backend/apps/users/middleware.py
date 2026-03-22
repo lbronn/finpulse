@@ -1,7 +1,11 @@
+import logging
+
 import jwt
 from jwt import PyJWKClient
 from django.conf import settings
 from django.http import JsonResponse
+
+logger = logging.getLogger(__name__)
 
 # Module-level cache — initialized once on first request, reused thereafter.
 # PyJWKClient fetches the public key set from Supabase's JWKS endpoint and
@@ -50,15 +54,10 @@ class SupabaseAuthMiddleware:
                 request.user_id = payload['sub']
             except jwt.ExpiredSignatureError:
                 return JsonResponse({'error': 'Token expired'}, status=401)
-            except jwt.InvalidTokenError as e:
-                return JsonResponse({
-                    'error': f'Invalid token: {str(e)}',
-                    'detail': type(e).__name__,
-                }, status=401)
-            except Exception as e:
-                return JsonResponse({
-                    'error': f'Auth error: {str(e)}',
-                    'detail': type(e).__name__,
-                }, status=401)
+            except jwt.InvalidTokenError:
+                return JsonResponse({'error': 'Invalid token'}, status=401)
+            except Exception:
+                logger.exception('Unexpected error during JWT validation')
+                return JsonResponse({'error': 'Authentication failed'}, status=401)
 
         return self.get_response(request)

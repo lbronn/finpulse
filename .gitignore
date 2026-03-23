@@ -21,6 +21,7 @@ venv/
 *.egg-info/
 .eggs/
 *.egg
+.pytest_cache/
 
 # Django
 *.sqlite3

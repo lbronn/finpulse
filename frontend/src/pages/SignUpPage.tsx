@@ -53,7 +53,7 @@ export default function SignUpPage() {
       if (profileError) throw profileError;
 
       setProfile(profile);
-      navigate('/');
+      navigate('/app');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed. Please try again.');
     } finally {

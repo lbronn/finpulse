@@ -16,3 +16,16 @@ class UserProfile(models.Model):
 
     def __str__(self) -> str:
         return self.display_name
+
+
+class OnboardingProgress(models.Model):
+    user_id = models.UUIDField(primary_key=True)
+    step = models.CharField(max_length=30, default='welcome')
+    completed_at = models.DateTimeField(null=True, blank=True)
+    skipped = models.BooleanField(default=False)
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = 'onboarding_progress'

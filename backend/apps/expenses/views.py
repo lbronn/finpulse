@@ -251,3 +251,92 @@ def confirm_categorization(request):
 
     AutoCategorizer.record_categorization(user_id, description, category_id)
     return Response({'status': 'recorded'}, status=200)
+
+
+@api_view(['GET'])
+def demo_data(request):
+    """
+    GET /api/demo/data
+
+    Returns pre-seeded demo data for the public demo page. No auth required.
+
+    Output:
+        200: {
+            expenses: list of {category_name, amount, description, expense_date},
+            budget_goals: list of {category, goal, spent},
+            monthly_summary: {total_spent, transaction_count, daily_average},
+            category_breakdown: list of {category, amount, count}
+        }
+    """
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT category_name, amount, description, expense_date
+                FROM demo_expenses ORDER BY expense_date DESC
+            """)
+            expenses = [
+                {
+                    "category_name": row[0],
+                    "amount": float(row[1]),
+                    "description": row[2],
+                    "expense_date": row[3].isoformat(),
+                }
+                for row in cursor.fetchall()
+            ]
+
+            cursor.execute("""
+                SELECT
+                    COALESCE(SUM(amount), 0) AS total,
+                    COUNT(*) AS count,
+                    COALESCE(SUM(amount) / GREATEST(EXTRACT(DAY FROM CURRENT_DATE), 1), 0) AS daily_avg
+                FROM demo_expenses
+                WHERE expense_date >= DATE_TRUNC('month', CURRENT_DATE)
+            """)
+            summary_row = cursor.fetchone()
+
+            cursor.execute("""
+                SELECT category_name, SUM(amount), COUNT(*)
+                FROM demo_expenses
+                WHERE expense_date >= DATE_TRUNC('month', CURRENT_DATE)
+                GROUP BY category_name ORDER BY SUM(amount) DESC
+            """)
+            breakdown = [
+                {"category": row[0], "amount": float(row[1]), "count": row[2]}
+                for row in cursor.fetchall()
+            ]
+
+        month_start_date = date.today().replace(day=1)
+
+        def is_current_month(expense_date_str: str) -> bool:
+            return date.fromisoformat(expense_date_str) >= month_start_date
+
+        demo_goals = [
+            {
+                "category": "Food & Dining",
+                "goal": 12000,
+                "spent": sum(e["amount"] for e in expenses if e["category_name"] == "Food & Dining" and is_current_month(e["expense_date"])),
+            },
+            {
+                "category": "Transportation",
+                "goal": 5000,
+                "spent": sum(e["amount"] for e in expenses if e["category_name"] == "Transportation" and is_current_month(e["expense_date"])),
+            },
+            {
+                "category": "Entertainment",
+                "goal": 3000,
+                "spent": sum(e["amount"] for e in expenses if e["category_name"] == "Entertainment" and is_current_month(e["expense_date"])),
+            },
+        ]
+
+        return Response({
+            "expenses": expenses,
+            "budget_goals": demo_goals,
+            "monthly_summary": {
+                "total_spent": float(summary_row[0]),
+                "transaction_count": summary_row[1],
+                "daily_average": float(summary_row[2]),
+            },
+            "category_breakdown": breakdown,
+        }, status=200)
+    except Exception:
+        return Response({'error': 'Demo data unavailable'}, status=503)

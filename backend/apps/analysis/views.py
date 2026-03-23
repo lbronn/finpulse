@@ -27,6 +27,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from apps.analysis.models import AnalysisHistory
+from services.quota import check_quota
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,12 @@ def analyze_expenses(request):
             {'error': 'Rate limit exceeded. Maximum 10 analyses per hour. Please try again later.'},
             status=429,
         )
+    quota = check_quota(user_id, 'expense_analysis')
+    if not quota['allowed']:
+        return Response({
+            'error': 'Monthly analysis limit reached.',
+            'quota': quota,
+        }, status=429)
     start_date = request.data.get('start_date')
     end_date = request.data.get('end_date')
 
@@ -141,6 +148,12 @@ def budget_recommendations(request):
             {'error': 'Rate limit exceeded. Maximum 10 recommendations per hour. Please try again later.'},
             status=429,
         )
+    quota = check_quota(user_id, 'budget_recommendation')
+    if not quota['allowed']:
+        return Response({
+            'error': 'Monthly recommendation limit reached.',
+            'quota': quota,
+        }, status=429)
     month = request.data.get('month')
 
     if not month:
@@ -311,6 +324,12 @@ def chat_message(request):
             {'error': 'Rate limit exceeded. Please wait a moment.'},
             status=429,
         )
+    quota = check_quota(user_id, 'chat')
+    if not quota['allowed']:
+        return Response({
+            'error': 'Monthly chat limit reached.',
+            'quota': quota,
+        }, status=429)
 
     message = request.data.get('message', '').strip()
     session_id = request.data.get('session_id')
@@ -433,3 +452,28 @@ def latest_digest(request):
         if not row:
             return Response({'digest': None, 'generated_at': None}, status=200)
         return Response({'digest': row[0], 'generated_at': row[1].isoformat()}, status=200)
+
+
+@api_view(['GET'])
+def usage_quota(request):
+    """
+    GET /api/analysis/quota
+
+    Returns the current month's AI usage for the authenticated user.
+
+    Output:
+        200: {
+            expense_analysis: {allowed, used, limit, remaining},
+            budget_recommendation: {allowed, used, limit, remaining},
+            chat: {allowed, used, limit, remaining},
+        }
+    """
+    if not hasattr(request, 'user_id'):
+        return Response({'error': 'Authentication required'}, status=401)
+
+    user_id = request.user_id
+    return Response({
+        'expense_analysis': check_quota(user_id, 'expense_analysis'),
+        'budget_recommendation': check_quota(user_id, 'budget_recommendation'),
+        'chat': check_quota(user_id, 'chat'),
+    }, status=200)

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -119,6 +120,8 @@ export default function ExpenseForm({
         expense_date: expenseDate,
         notes: notes.trim() || null,
       });
+      const isEdit = initialData && 'id' in initialData;
+      toast.success(isEdit ? 'Expense updated!' : 'Expense saved!');
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save expense.');

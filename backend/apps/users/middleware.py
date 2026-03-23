@@ -33,7 +33,7 @@ class SupabaseAuthMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.path.startswith('/api/'):
+        if request.path.startswith('/api/') and not request.path.startswith('/api/demo/'):
             auth_header = request.headers.get('Authorization', '')
             if not auth_header.startswith('Bearer '):
                 return JsonResponse({'error': 'No token provided'}, status=401)

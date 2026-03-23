@@ -53,6 +53,7 @@ export default function CategoryBreakdownChart({ data, loading, currency }: Prop
                 outerRadius={85}
                 paddingAngle={2}
                 dataKey="value"
+                animationDuration={800}
               >
                 {chartData.map((entry) => (
                   <Cell key={entry.name} fill={entry.fill} />

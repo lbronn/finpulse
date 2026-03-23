@@ -157,7 +157,7 @@ export function QuickCapture({ categories, onSaved, onEditFull, sticky = false }
       )}
 
       {/* Preview card */}
-      {state === 'preview' && parsed && (
+      {(state === 'preview' || state === 'saving') && parsed && (
         <QuickCapturePreview
           parsed={parsed}
           categories={categories}

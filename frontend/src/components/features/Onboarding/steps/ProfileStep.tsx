@@ -55,7 +55,7 @@ export default function ProfileStep({ onNext, onSkip, onBack }: ProfileStepProps
         </div>
         <div>
           <Label>Currency</Label>
-          <Select value={currency} onValueChange={setCurrency}>
+          <Select value={currency} onValueChange={(v) => { if (v) setCurrency(v); }}>
             <SelectTrigger className="mt-1">
               <SelectValue />
             </SelectTrigger>

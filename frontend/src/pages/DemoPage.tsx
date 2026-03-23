@@ -189,7 +189,7 @@ export default function DemoPage() {
                         <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatCurrency(v, 'PHP')} />
+                    <Tooltip formatter={(v) => formatCurrency(Number(v), 'PHP')} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>

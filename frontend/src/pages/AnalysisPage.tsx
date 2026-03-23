@@ -196,12 +196,12 @@ function HistoryItem({ record }: { record: AnalysisHistory }) {
             </>
           ) : isDigest ? (
             <div className="space-y-2">
-              {result.headline && (
-                <p className="font-semibold text-sm">{result.headline as string}</p>
+              {typeof result.headline === 'string' && (
+                <p className="font-semibold text-sm">{result.headline}</p>
               )}
-              {result.body && (
+              {typeof result.body === 'string' && (
                 <p className="text-sm text-muted-foreground whitespace-pre-line">
-                  {result.body as string}
+                  {result.body}
                 </p>
               )}
             </div>
@@ -577,7 +577,7 @@ function ChatTab({ onMessageSent }: { onMessageSent?: () => void }) {
 // Quota indicator
 // ---------------------------------------------------------------------------
 
-function QuotaIndicator({ label, used, limit, remaining }: { label: string; used: number; limit: number; remaining: number }) {
+function QuotaIndicator({ label, limit, remaining }: { label: string; used: number; limit: number; remaining: number }) {
   return (
     <div className="text-xs text-muted-foreground flex items-center gap-1.5">
       <span>{label}:</span>

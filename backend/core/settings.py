@@ -146,3 +146,9 @@ LOGGING = {
         },
     },
 }
+
+# AI usage quotas — free tier limits per user per month
+AI_MONTHLY_ANALYSIS_LIMIT = 10
+AI_MONTHLY_RECOMMENDATION_LIMIT = 10
+AI_MONTHLY_CHAT_LIMIT = 50
+AI_MONTHLY_DIGEST_LIMIT = 4

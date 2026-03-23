@@ -72,7 +72,7 @@ export default function MonthlySpendingChart({ data, currency, loading }: Props)
                 }
                 contentStyle={{ fontSize: 12 }}
               />
-              <Bar dataKey="total" fill="#378ADD" radius={[4, 4, 0, 0]} name="Total Spent" />
+              <Bar dataKey="total" fill="#378ADD" radius={[4, 4, 0, 0]} name="Total Spent" animationDuration={800} />
             </BarChart>
           </ResponsiveContainer>
         )}

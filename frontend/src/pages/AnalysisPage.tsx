@@ -44,10 +44,10 @@ const INSIGHT_ICONS: Record<InsightType, typeof TrendingUp> = {
 };
 
 const SEVERITY_BADGE: Record<InsightSeverity, string> = {
-  info: 'bg-blue-100 text-blue-800',
-  success: 'bg-green-100 text-green-800',
-  warning: 'bg-amber-100 text-amber-800',
-  critical: 'bg-red-100 text-red-800',
+  info: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+  success: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+  warning: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  critical: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
 };
 
 // ---------------------------------------------------------------------------
@@ -94,7 +94,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
             <div className="flex items-center gap-2">
               <span
                 className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                  isSaving ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                  isSaving ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
                 }`}
               >
                 {isSaving ? `Save ${diff}` : `Increase ${diff}`}
@@ -227,7 +227,7 @@ function HistoryItem({ record }: { record: AnalysisHistory }) {
 // Tab views
 // ---------------------------------------------------------------------------
 
-function ExpenseAnalysisTab() {
+function ExpenseAnalysisTab({ onAnalysisComplete }: { onAnalysisComplete?: () => void }) {
   const today = new Date().toISOString().split('T')[0];
   const firstOfMonth = today.slice(0, 8) + '01';
 
@@ -246,6 +246,7 @@ function ExpenseAnalysisTab() {
         end_date: endDate,
       });
       setResult(data);
+      onAnalysisComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed. Please try again.');
     } finally {
@@ -356,7 +357,7 @@ function ExpenseAnalysisTab() {
   );
 }
 
-function BudgetRecommendationsTab() {
+function BudgetRecommendationsTab({ onAnalysisComplete }: { onAnalysisComplete?: () => void }) {
   const thisMonth = new Date().toISOString().slice(0, 7);
   const [month, setMonth] = useState(thisMonth);
   const [loading, setLoading] = useState(false);
@@ -371,6 +372,7 @@ function BudgetRecommendationsTab() {
         month,
       });
       setResult(data);
+      onAnalysisComplete?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Recommendations failed. Please try again.');
     } finally {
@@ -541,8 +543,13 @@ function HistoryTab() {
 // Chat tab
 // ---------------------------------------------------------------------------
 
-function ChatTab() {
+function ChatTab({ onMessageSent }: { onMessageSent?: () => void }) {
   const { messages, loading, sendMessage, sessionId, loadSession, startNewSession } = useFinanceChat();
+
+  function handleSend(text: string) {
+    sendMessage(text);
+    onMessageSent?.();
+  }
 
   return (
     <div className="flex gap-4">
@@ -558,10 +565,26 @@ function ChatTab() {
         <ChatInterface
           messages={messages}
           loading={loading}
-          onSend={sendMessage}
+          onSend={handleSend}
           onNewSession={startNewSession}
         />
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Quota indicator
+// ---------------------------------------------------------------------------
+
+function QuotaIndicator({ label, used, limit, remaining }: { label: string; used: number; limit: number; remaining: number }) {
+  return (
+    <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+      <span>{label}:</span>
+      <span className={remaining === 0 ? 'text-destructive font-medium' : 'font-medium'}>
+        {remaining}/{limit} remaining
+      </span>
+      {remaining === 0 && <span className="text-destructive">(limit reached)</span>}
     </div>
   );
 }
@@ -571,6 +594,22 @@ function ChatTab() {
 // ---------------------------------------------------------------------------
 
 export default function AnalysisPage() {
+  type QuotaData = {
+    expense_analysis: { used: number; limit: number; remaining: number; allowed: boolean };
+    budget_recommendation: { used: number; limit: number; remaining: number; allowed: boolean };
+    chat: { used: number; limit: number; remaining: number; allowed: boolean };
+  };
+
+  const [quota, setQuota] = useState<QuotaData | null>(null);
+
+  const refreshQuota = () => {
+    api.get<QuotaData>('/analysis/quota').then(setQuota).catch(() => {});
+  };
+
+  useEffect(() => {
+    refreshQuota();
+  }, []);
+
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-4 max-w-4xl mx-auto">
       <div>
@@ -579,6 +618,14 @@ export default function AnalysisPage() {
           AI-powered insights into your spending patterns and budget health.
         </p>
       </div>
+
+      {quota && (
+        <div className="flex flex-wrap gap-4 p-3 rounded-lg bg-muted/40 border border-border">
+          <QuotaIndicator label="Analyses" used={quota.expense_analysis.used} limit={quota.expense_analysis.limit} remaining={quota.expense_analysis.remaining} />
+          <QuotaIndicator label="Recommendations" used={quota.budget_recommendation.used} limit={quota.budget_recommendation.limit} remaining={quota.budget_recommendation.remaining} />
+          <QuotaIndicator label="Chat messages" used={quota.chat.used} limit={quota.chat.limit} remaining={quota.chat.remaining} />
+        </div>
+      )}
 
       <Tabs defaultValue="chat">
         <TabsList className="grid w-full grid-cols-4">
@@ -589,15 +636,15 @@ export default function AnalysisPage() {
         </TabsList>
 
         <TabsContent value="chat" className="mt-4">
-          <ChatTab />
+          <ChatTab onMessageSent={refreshQuota} />
         </TabsContent>
 
         <TabsContent value="expenses" className="mt-4">
-          <ExpenseAnalysisTab />
+          <ExpenseAnalysisTab onAnalysisComplete={refreshQuota} />
         </TabsContent>
 
         <TabsContent value="recommendations" className="mt-4">
-          <BudgetRecommendationsTab />
+          <BudgetRecommendationsTab onAnalysisComplete={refreshQuota} />
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">
